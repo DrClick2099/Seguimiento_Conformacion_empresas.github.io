@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguimiento y Control Estatal - Conformación de empresas</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS para Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Chart.js para las gráficas -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Iconos FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .badge-actualizado { background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .badge-pendiente { background-color: #fef9c3; color: #a16207; border: 1px solid #fde047; }
+    .badge-distinto { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .badge-sin-estatus { background-color: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- ENCABEZADO -->
+  <header class="bg-emerald-800 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="p-2.5 bg-emerald-700/60 rounded-xl">
+          <i class="fa-solid fa-chart-pie text-2xl text-emerald-200"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Conformación de Empresas 2026 — Seguimiento y Control</h1>
+          <p class="text-xs text-emerald-200">Panel de Control y Visualización de Operativo</p>
+        </div>
+      </div>
+      <!-- Coordinación Estatal detectada -->
+      <div id="box-coordinacion" class="hidden items-center gap-2 bg-emerald-900/80 px-4 py-1.5 rounded-full border border-emerald-600">
+        <span class="text-xs uppercase text-emerald-300 font-semibold tracking-wider">Coordinación:</span>
+        <span id="txt-coordinacion" class="text-sm font-bold text-white tracking-wide">-</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
+
+    <!-- ZONA DE CARGA -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-6">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-800">Cargar Archivo de Seguimiento</h2>
+          <p class="text-xs text-slate-500">Admite el formato estándar de cualquier Coordinación Estatal.</p>
+        </div>
+        <div class="w-full md:w-auto">
+          <label class="cursor-pointer flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 text-sm">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>Seleccionar Archivo Excel</span>
+            <input type="file" id="input-excel" accept=".xlsx, .xls" class="hidden" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANTALLA VACÍA -->
+    <div id="empty-state" class="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
+      <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-table-list text-2xl"></i>
+      </div>
+      <h3 class="text-lg font-semibold text-slate-700">No hay datos cargados</h3>
+      <p class="text-sm text-slate-500 mt-1">Carga tu archivo Excel para ver las métricas, gráficas y listado.</p>
+    </div>
+
+    <!-- SECCIÓN DE CONTENIDO (Métricas, Gráficas y Tabla) -->
+    <div id="content-section" class="hidden space-y-6">
+
+      <!-- TARJETAS DE RESUMEN (KPIs) -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Registros</span>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="kpi-total" class="text-2xl font-black text-slate-800">0</span>
+            <i class="fa-solid fa-building text-slate-300 text-lg"></i>
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Actualizado Completo</span>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="kpi-actualizado" class="text-2xl font-black text-emerald-600">0</span>
+            <i class="fa-solid fa-circle-check text-emerald-300 text-lg"></i>
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-amber-600 uppercase tracking-wider">Pendientes</span>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="kpi-pendiente" class="text-2xl font-black text-amber-600">0</span>
+            <i class="fa-solid fa-clock text-amber-300 text-lg"></i>
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <span class="text-xs font-semibold text-rose-600 uppercase tracking-wider">Def. Distinto</span>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="kpi-distinto" class="text-2xl font-black text-rose-600">0</span>
+            <i class="fa-solid fa-triangle-exclamation text-rose-300 text-lg"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN DE GRÁFICAS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Gráfica 1: Dona Estatus -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center">
+          <h3 class="text-sm font-bold text-slate-700 mb-4 self-start flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-emerald-600"></i> Proporción de Estatus
+          </h3>
+          <div class="relative w-full max-w-[240px] h-[220px] flex items-center justify-center">
+            <canvas id="chartEstatus"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfica 2: Barras por Responsable -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm md:col-span-2">
+          <h3 class="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-chart-column text-emerald-600"></i> Carga y Avance por Responsable
+          </h3>
+          <div class="w-full h-[220px]">
+            <canvas id="chartResponsables"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTROS Y BÚSQUEDA -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+        <div class="relative w-full md:w-80">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400"></i>
+          <input type="text" id="input-busqueda" placeholder="Buscar por UE, Razón Social, Persona..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+        <div class="flex items-center gap-2 w-full md:w-auto">
+          <span class="text-sm font-medium text-slate-600 whitespace-nowrap">Filtrar Estatus:</span>
+          <select id="select-estatus" class="w-full md:w-auto text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="todos">Todos los Estatus</option>
+            <option value="Actualizado completo">Actualizado completo</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Definitivo Distinto">Definitivo Distinto</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TABLA DE DATOS -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <tr>
+                <th class="px-4 py-3 text-center">#</th>
+                <th class="px-4 py-3">ID UE / Empresa</th>
+                <th class="px-4 py-3">Razón Social</th>
+                <th class="px-4 py-3">Responsable FACE</th>
+                <th class="px-4 py-3 text-center">F. Compromiso</th>
+                <th class="px-4 py-3 text-center">Estatus</th>
+                <th class="px-4 py-3 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="table-body" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+        <div id="no-results" class="hidden p-8 text-center text-sm text-slate-500">
+          No se encontraron registros que coincidan con el filtro.
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- MODAL DE DETALLE -->
+  <div id="modal-detalle" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+      <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+        <div>
+          <h3 id="modal-title" class="text-base font-bold text-slate-800">Detalle de Unidad Económica</h3>
+          <span id="modal-subtitle" class="text-xs text-slate-500"></span>
+        </div>
+        <button onclick="cerrarModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <div id="modal-content" class="p-6 max-h-[75vh] overflow-y-auto space-y-4 text-sm"></div>
+      <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 text-right">
+        <button onclick="cerrarModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg text-xs transition-colors">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let registrosGlobales = [];
+    let chartDonaInstance = null;
+    let chartBarrasInstance = null;
+
+    document.getElementById('input-excel').addEventListener('change', procesarArchivoExcel);
+    document.getElementById('input-busqueda').addEventListener('input', filtrarYRenderizar);
+    document.getElementById('select-estatus').addEventListener('change', filtrarYRenderizar);
+
+    // FUNCIÓN DE FECHAS NORMALIZADA (Resuelve el problema de la captura en formatos mixtos)
+    function formatearFecha(val) {
+      if (!val) return "-";
+
+      // 1. Si viene como objeto Date nativo
+      if (val instanceof Date && !isNaN(val.getTime())) {
+        const d = String(val.getDate()).padStart(2, '0');
+        const m = String(val.getMonth() + 1).padStart(2, '0');
+        const y = val.getFullYear();
+        return `${d}/${m}/${y}`;
+      }
+
+      // 2. Si es número serial de Excel
+      if (typeof val === 'number') {
+        const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+        if (!isNaN(date.getTime())) {
+          const d = String(date.getUTCDate()).padStart(2, '0');
+          const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const y = date.getUTCFullYear();
+          return `${d}/${m}/${y}`;
+        }
+      }
+
+      const str = String(val).trim();
+
+      // 3. Si viene como ISO "2026-09-30" o "2026-09-30 00:00:00"
+      if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+        const parts = str.substring(0, 10).split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+
+      // 4. Si ya viene como texto "31/09/2026" o "5/9/2026"
+      if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 3) {
+          const p0 = parts[0].padStart(2, '0');
+          const p1 = parts[1].padStart(2, '0');
+          const p2 = parts[2].substring(0, 4);
+          // Si el año viene primero: YYYY/MM/DD
+          if (p0.length === 4) return `${parts[2].padStart(2, '0')}/${p1}/${p0}`;
+          return `${p0}/${p1}/${p2}`;
+        }
+      }
+
+      return str;
+    }
+
+    function procesarArchivoExcel(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+          // Detección de Coordinación Estatal
+          let coordinacion = "No especificada";
+          for (let r = 0; r < Math.min(10, rows.length); r++) {
+            const rowStr = rows[r].map(c => String(c).trim());
+            const idxCoord = rowStr.findIndex(c => c.toLowerCase().includes("coordinación") || c.toLowerCase().includes("coordinacion"));
+            if (idxCoord !== -1) {
+              for (let c = idxCoord + 1; c < rows[r].length; c++) {
+                if (String(rows[r][c]).trim() !== "") {
+                  coordinacion = String(rows[r][c]).trim();
+                  break;
+                }
+              }
+              break;
+            }
+          }
+
+          document.getElementById('txt-coordinacion').textContent = coordinacion;
+          document.getElementById('box-coordinacion').classList.remove('hidden');
+          document.getElementById('box-coordinacion').classList.add('flex');
+
+          // Detección de inicio de filas de datos
+          registrosGlobales = [];
+          let startRow = 10;
+          for (let r = 0; r < rows.length; r++) {
+            if (rows[r] && (rows[r][0] === 1 || rows[r][0] === "1")) {
+              startRow = r;
+              break;
+            }
+          }
+
+          for (let r = startRow; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row || (!row[0] && !row[1] && !row[3])) continue;
+
+            let estatus = "Sin clasificar";
+            const esAct = String(row[17] || "").trim().toUpperCase() === "X";
+            const esPend = String(row[18] || "").trim().toUpperCase() === "X";
+            const esDist = String(row[19] || "").trim().toUpperCase() === "X";
+
+            if (esAct) estatus = "Actualizado completo";
+            else if (esPend) estatus = "Pendiente";
+            else if (esDist) estatus = "Definitivo Distinto";
+
+            registrosGlobales.push({
+              num: row[0] || "",
+              idUE: row[1] || "",
+              idEmpresa: row[2] || "",
+              razonSocial: row[3] || "Sin Nombre",
+              numEst: row[4] || "",
+              informante: {
+                nombre: row[5] || "",
+                cargo: row[6] || "",
+                domicilio: row[7] || "",
+                correo: row[8] || "",
+                telefono: row[9] || ""
+              },
+              concertacion: {
+                fechaOficio: formatearFecha(row[10]),
+                responsable: String(row[11] || "").trim() || "Sin asignar",
+                requiereApoyo: row[12] || "",
+                apoyoNombre: row[13] || "",
+                fechaEntrevista: formatearFecha(row[14]),
+                metodoEntrega: row[15] || "",
+                fechaCompromiso: formatearFecha(row[16]) // Formato unificado DD/MM/YYYY
+              },
+              estatus: estatus,
+              notas: row[20] || ""
+            });
+          }
+
+          // Alternar vistas
+          document.getElementById('empty-state').classList.add('hidden');
+          document.getElementById('content-section').classList.remove('hidden');
+
+          actualizarKPIs();
+          generarGraficas();
+          filtrarYRenderizar();
+
+        } catch (err) {
+          alert("Error al leer el archivo Excel: " + err.message);
+          console.error(err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function actualizarKPIs() {
+      const total = registrosGlobales.length;
+      const actualizados = registrosGlobales.filter(r => r.estatus === "Actualizado completo").length;
+      const pendientes = registrosGlobales.filter(r => r.estatus === "Pendiente").length;
+      const distintos = registrosGlobales.filter(r => r.estatus === "Definitivo Distinto").length;
+
+      document.getElementById('kpi-total').textContent = total;
+      document.getElementById('kpi-actualizado').textContent = actualizados;
+      document.getElementById('kpi-pendiente').textContent = pendientes;
+      document.getElementById('kpi-distinto').textContent = distintos;
+    }
+
+    // CREACIÓN Y ACTUALIZACIÓN DE GRÁFICAS (Chart.js)
+    function generarGraficas() {
+      const actualizados = registrosGlobales.filter(r => r.estatus === "Actualizado completo").length;
+      const pendientes = registrosGlobales.filter(r => r.estatus === "Pendiente").length;
+      const distintos = registrosGlobales.filter(r => r.estatus === "Definitivo Distinto").length;
+
+      // 1. Gráfica de Dona: Estatus
+      const ctxDona = document.getElementById('chartEstatus').getContext('2d');
+      if (chartDonaInstance) chartDonaInstance.destroy();
+
+      chartDonaInstance = new Chart(ctxDona, {
+        type: 'doughnut',
+        data: {
+          labels: ['Actualizado', 'Pendiente', 'Def. Distinto'],
+          datasets: [{
+            data: [actualizados, pendientes, distintos],
+            backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+            hoverOffset: 4,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+          },
+          cutout: '65%'
+        }
+      });
+
+      // 2. Gráfica de Barras: Responsables
+      const responsablesMap = {};
+      registrosGlobales.forEach(r => {
+        const resp = r.concertacion.responsable;
+        if (!responsablesMap[resp]) {
+          responsablesMap[resp] = { actualizados: 0, pendientes: 0, distintos: 0 };
+        }
+        if (r.estatus === "Actualizado completo") responsablesMap[resp].actualizados++;
+        else if (r.estatus === "Pendiente") responsablesMap[resp].pendientes++;
+        else if (r.estatus === "Definitivo Distinto") responsablesMap[resp].distintos++;
+      });
+
+      const respLabels = Object.keys(responsablesMap);
+      const respActualizados = respLabels.map(l => responsablesMap[l].actualizados);
+      const respPendientes = respLabels.map(l => responsablesMap[l].pendientes);
+
+      const ctxBarras = document.getElementById('chartResponsables').getContext('2d');
+      if (chartBarrasInstance) chartBarrasInstance.destroy();
+
+      chartBarrasInstance = new Chart(ctxBarras, {
+        type: 'bar',
+        data: {
+          labels: respLabels,
+          datasets: [
+            {
+              label: 'Actualizados',
+              data: respActualizados,
+              backgroundColor: '#10b981'
+            },
+            {
+              label: 'Pendientes',
+              data: respPendientes,
+              backgroundColor: '#f59e0b'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true, ticks: { font: { size: 10 } } },
+            y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+          },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+          }
+        }
+      });
+    }
+
+    function filtrarYRenderizar() {
+      const query = document.getElementById('input-busqueda').value.toLowerCase().trim();
+      const filtroEstatus = document.getElementById('select-estatus').value;
+
+      const filtrados = registrosGlobales.filter(reg => {
+        const coincideEstatus = (filtroEstatus === 'todos') || (reg.estatus === filtroEstatus);
+        const coincideTexto = 
+          String(reg.idUE).toLowerCase().includes(query) ||
+          String(reg.idEmpresa).toLowerCase().includes(query) ||
+          String(reg.razonSocial).toLowerCase().includes(query) ||
+          String(reg.concertacion.responsable).toLowerCase().includes(query) ||
+          String(reg.informante.nombre).toLowerCase().includes(query);
+
+        return coincideEstatus && coincideTexto;
+      });
+
+      renderizarTabla(filtrados);
+    }
+
+    function renderizarTabla(datos) {
+      const tbody = document.getElementById('table-body');
+      const noResults = document.getElementById('no-results');
+      tbody.innerHTML = '';
+
+      if (datos.length === 0) {
+        noResults.classList.remove('hidden');
+        return;
+      }
+      noResults.classList.add('hidden');
+
+      datos.forEach((reg, index) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition-colors";
+
+        let badgeClass = "badge-sin-estatus";
+        if (reg.estatus === "Actualizado completo") badgeClass = "badge-actualizado";
+        else if (reg.estatus === "Pendiente") badgeClass = "badge-pendiente";
+        else if (reg.estatus === "Definitivo Distinto") badgeClass = "badge-distinto";
+
+        tr.innerHTML = `
+          <td class="px-4 py-3 text-center font-medium text-slate-400">${reg.num || index + 1}</td>
+          <td class="px-4 py-3">
+            <span class="font-bold text-slate-800">UE: ${reg.idUE}</span>
+            <div class="text-xs text-slate-400">Emp: ${reg.idEmpresa}</div>
+          </td>
+          <td class="px-4 py-3 max-w-xs truncate font-medium text-slate-700" title="${reg.razonSocial}">
+            ${reg.razonSocial}
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">
+            ${reg.concertacion.responsable}
+          </td>
+          <td class="px-4 py-3 text-center text-xs font-mono font-semibold text-slate-700">
+            ${reg.concertacion.fechaCompromiso}
+          </td>
+          <td class="px-4 py-3 text-center">
+            <span class="px-2.5 py-1 text-xs font-semibold rounded-full ${badgeClass}">
+              ${reg.estatus}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <button onclick="abrirModal(${reg.num - 1})" class="text-xs bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 font-medium px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
+              <i class="fa-solid fa-eye mr-1"></i> Detalle
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function abrirModal(index) {
+      const reg = registrosGlobales[index];
+      if (!reg) return;
+
+      document.getElementById('modal-title').textContent = reg.razonSocial;
+      document.getElementById('modal-subtitle').textContent = `ID UE: ${reg.idUE} | ID Empresa: ${reg.idEmpresa} | Núm. Est: ${reg.numEst}`;
+
+      const content = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-user"></i> Informante
+            </h4>
+            <div class="space-y-1 text-xs">
+              <p><span class="font-semibold text-slate-600">Nombre:</span> ${reg.informante.nombre || '-'}</p>
+              <p><span class="font-semibold text-slate-600">Cargo:</span> ${reg.informante.cargo || '-'}</p>
+              <p><span class="font-semibold text-slate-600">Teléfono:</span> ${reg.informante.telefono || '-'}</p>
+              <p><span class="font-semibold text-slate-600">Correo:</span> ${reg.informante.correo || '-'}</p>
+              <p><span class="font-semibold text-slate-600">Domicilio:</span> ${reg.informante.domicilio || '-'}</p>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+            <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-clipboard-check"></i> Concertación y Seguimiento
+            </h4>
+            <div class="space-y-1 text-xs">
+              <p><span class="font-semibold text-slate-600">Responsable FACE:</span> ${reg.concertacion.responsable}</p>
+              <p><span class="font-semibold text-slate-600">F. Oficio:</span> ${reg.concertacion.fechaOficio}</p>
+              <p><span class="font-semibold text-slate-600">F. Entrevista:</span> ${reg.concertacion.fechaEntrevista}</p>
+              <p><span class="font-semibold text-slate-600">F. Compromiso:</span> ${reg.concertacion.fechaCompromiso}</p>
+              <p><span class="font-semibold text-slate-600">Método Entrega:</span> ${reg.concertacion.metodoEntrega || '-'}</p>
+              <p><span class="font-semibold text-slate-600">Requiere Apoyo:</span> ${reg.concertacion.requiereApoyo || 'NO'}</p>
+              ${reg.concertacion.apoyoNombre ? `<p><span class="font-semibold text-slate-600">Quién Apoya:</span> ${reg.concertacion.apoyoNombre}</p>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200/70">
+          <h4 class="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <i class="fa-regular fa-note-sticky"></i> Notas y Observaciones
+          </h4>
+          <p class="text-xs text-amber-900 whitespace-pre-line leading-relaxed font-sans">${reg.notas || 'Sin notas registradas.'}</p>
+        </div>
+      `;
+
+      document.getElementById('modal-content').innerHTML = content;
+      document.getElementById('modal-detalle').classList.remove('hidden');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal-detalle').classList.add('hidden');
+    }
+  </script>
+</body>
+</html>
